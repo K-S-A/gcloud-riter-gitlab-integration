@@ -3,6 +3,7 @@
 const { request } = require('graphql-request');
 
 const endpoint = `${process.env.GRAPHQL_API_URL}?api_token=${process.env.GRAPHQL_API_TOKEN}`;
+const users = process.env.USERS.split(' ');
 
 // // Query for a new GraphQL API interface
 // const query = `
@@ -25,7 +26,7 @@ const query = `
 
 exports.http = async (req, response) => {
   // Allow only calls from specific user
-  if(req.body.user && process.env.USERNAME && req.body.user.username !== process.env.USERNAME) {
+  if(!req.body.user || req.body.user && !users.includes(req.body.user.username)) {
     return response.status(200);
   }
 
