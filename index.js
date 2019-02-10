@@ -27,7 +27,7 @@ const query = `
 exports.http = async (req, response) => {
   // Allow only calls from specific user
   if(!req.body.user || req.body.user && !users.includes(req.body.user.username)) {
-    return response.status(200);
+    return response.status(200).send();
   }
 
   // Validate presence of content.
