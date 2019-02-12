@@ -2,21 +2,20 @@
 
 const { request } = require('graphql-request');
 
-const endpoint = `${process.env.GRAPHQL_API_URL}?api_token=${process.env.GRAPHQL_API_TOKEN}`;
 const users = process.env.USERS.split(' ');
 
-// // Query for a new GraphQL API interface
-// const query = `
-//   mutation($input: AnnotationTypeCreateInput!) {
-//     createAnnotation(input: $input) {
-//       resource {
-//         slug
-//       }
-//     }
-//   }
-// `;
+// Query for a new GraphQL API interface
+const newQuery = `
+  mutation($input: AnnotationTypeCreateInput!) {
+    createAnnotation(input: $input) {
+      resource {
+        slug
+      }
+    }
+  }
+`;
 
-const query = `
+const oldQuery = `
   mutation($body: String!, $storySlug: String!) {
     createAnnotation(body: $body, storySlug: $storySlug) {
       slug
@@ -24,21 +23,48 @@ const query = `
   }
 `;
 
-exports.http = async (req, response) => {
+const projects = {
+  'tracker': {
+    endpoint: process.env.TRACKER_GRAPHQL_API_URL,
+    query: oldQuery,
+    queryType: 'old'
+  },
+  'client': {
+    endpoint: process.env.CLIENT_GRAPHQL_API_URL,
+    query: oldQuery,
+    queryType: 'old'
+  },
+  'webhook-test': {
+    endpoint: process.env.WEBHOOK_TEST_GRAPHQL_API_URL,
+    query: newQuery,
+    queryType: 'new'
+  }
+};
+
+exports.http = (req, response) => {
+  // respond immediately to the webhook
+  response.status(200).send();
+
+  let project;
+
+  if(req.body.project) {
+    project = projects[req.body.project.name];
+  }
+
   // Allow only calls from specific user
-  if(!req.body.user || req.body.user && !users.includes(req.body.user.username)) {
-    return response.status(200).send();
+  if(!project || !req.body.user || req.body.user && !users.includes(req.body.user.username)) {
+    return 1;
   }
 
   // Validate presence of content.
   const attributes = req.body.object_attributes;
 
   if(!attributes) {
-    return response.status(422).send('Content is missing.');
+    return 2;
   }
 
   // Guess story slug.
-  var storySlug;
+  let storySlug;
 
   if(attributes.description) {
     [, storySlug] = attributes.description.match(/stories\/([\w-]+)/) || [];
@@ -50,23 +76,24 @@ exports.http = async (req, response) => {
 
   // Validate presence of story slug.
   if(!storySlug) {
-    return response.status(404).send('Story identifier was not recognized.');
+    return 3;
   }
 
   // Perform API call.
   const { url, iid, title, action } = attributes;
+  const { endpoint, query, queryType } = project;
 
-  const variables = {
+  let variables = {
     body: `[Merge request !${iid} - "${title}" (${action})](${url})`,
     storySlug: storySlug
+  };
+
+  if(queryType === 'new') {
+    variables = { input: variables };
   }
 
-  try {
-    const result = await request(endpoint, query, variables);
-    return response.status(200).send(result);
-  } catch(err) {
-    return response.status(400).send(err);
-  }
+  request(endpoint, query, variables).catch(() => {});
+  return 0;
 };
 
 exports.event = (_event, callback) => {
