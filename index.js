@@ -4,8 +4,7 @@ const { request } = require('graphql-request');
 
 const users = process.env.USERS.split(' ');
 
-// Query for a new GraphQL API interface
-const newQuery = `
+const query = `
   mutation($input: AnnotationTypeCreateInput!) {
     createAnnotation(input: $input) {
       resource {
@@ -15,29 +14,15 @@ const newQuery = `
   }
 `;
 
-const oldQuery = `
-  mutation($body: String!, $storySlug: String!) {
-    createAnnotation(body: $body, storySlug: $storySlug) {
-      slug
-    }
-  }
-`;
-
 const projects = {
   'tracker': {
-    endpoint: process.env.TRACKER_GRAPHQL_API_URL,
-    query: oldQuery,
-    queryType: 'old'
+    endpoint: process.env.TRACKER_GRAPHQL_API_URL
   },
   'client': {
-    endpoint: process.env.CLIENT_GRAPHQL_API_URL,
-    query: oldQuery,
-    queryType: 'old'
+    endpoint: process.env.CLIENT_GRAPHQL_API_URL
   },
   'webhook-test': {
-    endpoint: process.env.WEBHOOK_TEST_GRAPHQL_API_URL,
-    query: newQuery,
-    queryType: 'new'
+    endpoint: process.env.WEBHOOK_TEST_GRAPHQL_API_URL
   }
 };
 
@@ -81,16 +66,14 @@ exports.http = (req, response) => {
 
   // Perform API call.
   const { url, iid, title, action } = attributes;
-  const { endpoint, query, queryType } = project;
+  const { endpoint } = project;
 
-  let variables = {
-    body: `[Merge request !${iid} - "${title}" (${action})](${url})`,
-    storySlug: storySlug
+  const variables = {
+    input: {
+      body: `[Merge request !${iid} - "${title}" (${action})](${url})`,
+      storySlug: storySlug
+    }
   };
-
-  if(queryType === 'new') {
-    variables = { input: variables };
-  }
 
   request(endpoint, query, variables).catch(() => {});
   return 0;
