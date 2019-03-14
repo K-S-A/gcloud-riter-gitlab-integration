@@ -42,3 +42,9 @@ functions-emulator logs read
 ```
 functions-emulator inspect http
 ```
+
+##### Run tests
+
+```
+npm test
+```

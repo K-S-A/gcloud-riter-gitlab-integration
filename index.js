@@ -1,6 +1,6 @@
 'use strict';
 
-const { request } = require('graphql-request');
+const graphqlService = require('graphql-request');
 
 const users = process.env.USERS.split(' ');
 
@@ -17,6 +17,9 @@ const query = `
 const projects = {
   'tracker': {
     endpoint: process.env.TRACKER_GRAPHQL_API_URL
+  },
+  'notifications': {
+    endpoint: process.env.NOTIFICATIONS_GRAPHQL_API_URL
   },
   'client': {
     endpoint: process.env.CLIENT_GRAPHQL_API_URL
@@ -67,15 +70,11 @@ exports.http = (req, response) => {
   // Perform API call.
   const { url, iid, title, action } = attributes;
   const { endpoint } = project;
+  const body = `[Merge request !${iid} - "${title}" (${action})](${url})`
+  const variables = { input: { body, storySlug } };
 
-  const variables = {
-    input: {
-      body: `[Merge request !${iid} - "${title}" (${action})](${url})`,
-      storySlug: storySlug
-    }
-  };
+  graphqlService.request(endpoint, query, variables).catch(() => {});
 
-  request(endpoint, query, variables).catch(() => {});
   return 0;
 };
 
